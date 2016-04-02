@@ -31,7 +31,7 @@ public class GetQuestionService extends Service{
 
     public final static String UPDATED_ENTERIES ="updated_entries";
 
-    private final int pageSize = 1; //TODO: change back to 25
+    private final int pageSize = 25;
     private final int maxPages = 4;
     private long lastFetched = 0;
     private int entriesRetrieved = 0;
@@ -182,12 +182,16 @@ public class GetQuestionService extends Service{
                 JSONArray items = jsonObject.getJSONArray("items");
 
                 int itemsCount = items.length();
+                int entriesInserted = 0;
                 for(int i=0; i<itemsCount; i++){
-                    AccessDB.getInstance(myContext).insertQuestion(items.getJSONObject(i));
+                    long id = AccessDB.getInstance(myContext).insertQuestion(items.getJSONObject(i));
+                    if(id>0){
+                        entriesInserted++;
+                    }
                 }
 
-                if(itemsCount>0){
-                    sendNotification(itemsCount);
+                if(entriesInserted>0){
+                    sendNotification(entriesInserted);
                 }
             } catch (JSONException e) {
                 e.printStackTrace();

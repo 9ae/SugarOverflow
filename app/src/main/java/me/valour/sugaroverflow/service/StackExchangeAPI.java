@@ -130,7 +130,6 @@ public class StackExchangeAPI {
                         "from_date=" + after +
                         "&order=asc" +
                         "&sort=creation" +
-                        "&pagesize=1" + //TODO: remove this line
                         "&tagged=android" +
                         "&site=stackoverflow",
                 Request.Method.GET, null, responseListener, RECURRING);

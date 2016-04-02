@@ -113,7 +113,9 @@ public class QuestionFragment extends ListFragment {
             ArrayList<Question> questions = AccessDB.getInstance(appContext).listQuestions(lastChecked);
             updateList(questions);
 
-            lastChecked = (int)(System.currentTimeMillis()/1000);
+            if(questions.size()>0) {
+                lastChecked = (int) (System.currentTimeMillis() / 1000);
+            }
             Log.i("FLOW", "checking DB");
             dbCheckHandler.postDelayed(this, 30000);
         }
