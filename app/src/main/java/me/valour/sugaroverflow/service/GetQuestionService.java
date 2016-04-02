@@ -6,7 +6,9 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
+import android.os.Handler;
 import android.os.IBinder;
+import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -23,37 +25,35 @@ import java.util.concurrent.TimeUnit;
 
 import me.valour.sugaroverflow.activity.MainActivity;
 import me.valour.sugaroverflow.model.Question;
+import me.valour.sugaroverflow.orm.AccessDB;
 
 public class GetQuestionService extends Service{
 
     public final static String UPDATED_ENTERIES ="updated_entries";
 
-    private final IBinder binder = new Glue();
-    private final int pageSize = 25;
+    private final int pageSize = 1; //TODO: change back to 25
     private final int maxPages = 4;
     private long lastFetched = 0;
+    private int entriesRetrieved = 0;
 
     private boolean hasMoreEntries = true;
 
-    private Timer newEntriesTimer = null;
-    private ArrayList<Question> entries;
     private InitialEntriesResponse initResponse;
     private NewEntriesResponse newEntriesResponse;
 
-    public GetQuestionService() {
-    }
+    private Context myContext;
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return binder;
+    public GetQuestionService() {
+
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-        entries = new ArrayList<Question>();
         initResponse = new InitialEntriesResponse();
         newEntriesResponse = new NewEntriesResponse();
+
+        myContext = this.getApplicationContext();
     }
 
     @Override
@@ -61,9 +61,18 @@ public class GetQuestionService extends Service{
         super.onDestroy();
     }
 
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         queueUpRequests();
+        startRecurringFetch();
+
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -76,6 +85,7 @@ public class GetQuestionService extends Service{
 
         for(int page=1; page <= maxPages; page++){
             if(!hasMoreEntries){
+                lastFetched = System.currentTimeMillis()/1000;
                 StackExchangeAPI.getInstance(this).clearQueue(StackExchangeAPI.STARTER);
                 break;
             }
@@ -91,27 +101,22 @@ public class GetQuestionService extends Service{
      * Check every 15 minutes
      */
     public void startRecurringFetch(){
-        lastFetched = System.currentTimeMillis();
 
-        final Context ctx = this;
-        newEntriesTimer = new Timer();
-        newEntriesTimer.scheduleAtFixedRate(new TimerTask() {
+        final Handler handler = new Handler();
+        Runnable runner = new Runnable() {
             @Override
             public void run() {
-               StackExchangeAPI.getInstance(ctx).getAndroidQuestionsAfter(lastFetched, newEntriesResponse);
+                if(!hasMoreEntries){
+                    StackExchangeAPI.getInstance(myContext).getAndroidQuestionsAfter(lastFetched, newEntriesResponse);
+                    lastFetched = System.currentTimeMillis()/1000;
+                    handler.postDelayed(this, 15*60000);
+                } else {
+                    handler.postDelayed(this, 5000);
+                }
             }
-        }, 0, TimeUnit.MINUTES.toMillis(15));
+        };
+        runner.run();
 
-    }
-
-    /**
-     * If the App is active, we want to stop checking for updates
-     */
-    public void stopRecurringFetch(){
-        if(newEntriesTimer!=null) {
-            newEntriesTimer.cancel();
-            newEntriesTimer = null;
-        }
     }
 
     /**
@@ -143,31 +148,6 @@ public class GetQuestionService extends Service{
     }
 
     /**
-     * Get new entries stored in temp array list
-     * @return Array list of new entries found
-     */
-    public ArrayList<Question> getNewEntries(){
-        return entries;
-    }
-
-    /**
-     * Empty temp array list of entries
-     */
-    public void clearEntries(){
-        entries.clear();
-    }
-
-    /**
-     * Binder to connect this serivce to an activity
-     * allowing the activity to access public methods of GetQuestionService
-     */
-    public class Glue extends Binder {
-        public GetQuestionService getService() {
-            return GetQuestionService.this;
-        }
-    }
-
-    /**
      * ResponseHandler for initial retrieval of 100 entries
      */
     class InitialEntriesResponse implements Response.Listener<JSONObject> {
@@ -177,23 +157,23 @@ public class GetQuestionService extends Service{
                 JSONArray items = jsonObject.getJSONArray("items");
                 int itemsCount = items.length();
                 for(int i=0; i<itemsCount; i++){
-                    Question quest = new Question(items.getJSONObject(i));
-                    entries.add(quest);
+                    AccessDB.getInstance(myContext).insertQuestion(items.getJSONObject(i));
                 }
-                if(itemsCount>0){
-                    sendBroadcast(new Intent(UPDATED_ENTERIES));
-                }
+                entriesRetrieved += itemsCount;
                 hasMoreEntries = jsonObject.getBoolean("has_more");
 
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
+            if(entriesRetrieved==(pageSize*maxPages)){
+                hasMoreEntries = false;
+                lastFetched = System.currentTimeMillis()/1000;
+            }
         }
     }
 
     /**
-     * ResponseHandler of the request tht checks for new entries
+     * ResponseHandler of the request that checks for new entries
      */
     class NewEntriesResponse implements Response.Listener<JSONObject> {
         @Override
@@ -202,6 +182,9 @@ public class GetQuestionService extends Service{
                 JSONArray items = jsonObject.getJSONArray("items");
 
                 int itemsCount = items.length();
+                for(int i=0; i<itemsCount; i++){
+                    AccessDB.getInstance(myContext).insertQuestion(items.getJSONObject(i));
+                }
 
                 if(itemsCount>0){
                     sendNotification(itemsCount);
@@ -210,7 +193,7 @@ public class GetQuestionService extends Service{
                 e.printStackTrace();
             }
 
-            lastFetched = System.currentTimeMillis();
+            lastFetched = System.currentTimeMillis()/1000;
 
         }
     }

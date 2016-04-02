@@ -9,11 +9,17 @@ import org.json.JSONObject;
 /**
  * Created by alice on 3/30/16.
  */
-public class Question implements Parcelable {
+public class Question {
+
+    public static final String KEY_ID = "question_id";
+    public static final String KEY_TITLE = "title";
+    public static final String KEY_LINK = "link";
+    public static final String KEY_CREATED_ON = "creation_date";
 
     public final String id;
     public final String title;
     public final String link;
+    public final int creation_date;
 
     /**
      * Constructs Question object from the Stackover flow JSON question object
@@ -49,9 +55,10 @@ public class Question implements Parcelable {
      */
     public Question(JSONObject json) throws JSONException{
 
-        title = json.getString("title");
-        id = json.getString("question_id");
-        link = json.getString("link");
+        title = json.getString(KEY_TITLE);
+        id = json.getString(KEY_ID);
+        link = json.getString(KEY_LINK);
+        creation_date = json.getInt(KEY_CREATED_ON);
     }
 
     /**
@@ -61,51 +68,11 @@ public class Question implements Parcelable {
      * @param title Title of question post
      * @param link URL of this question's webpage
      */
-    public Question(String id, String title, String link){
+    public Question(String id, String title, String link, int creation_date){
         this.id = id;
         this.title = title;
         this.link = link;
+        this.creation_date = creation_date;
     }
 
-    /**
-     * Constructor used by parcel interface when re-constructing from Bundle instance
-     * @param in
-     */
-    public Question(Parcel in){
-        String[] data = new String[3];
-
-        in.readStringArray(data);
-        this.id = data[0];
-        this.title = data[1];
-        this.link = data[2];
-    }
-
-    @Override
-    public int describeContents(){
-        return 0;
-    }
-
-    /**
-     * Write to bundle instance
-     * @param dest
-     * @param flags
-     */
-    @Override
-    public void writeToParcel(Parcel dest, int flags) {
-
-        dest.writeStringArray(new String[] {this.id, this.title, this.link});
-    }
-
-    /**
-     * Prepare Question to be written as a parcelable object
-     */
-    public static final Parcelable.Creator CREATOR = new Parcelable.Creator() {
-        public Question createFromParcel(Parcel in) {
-            return new Question(in);
-        }
-
-        public Question[] newArray(int size) {
-            return new Question[size];
-        }
-    };
 }

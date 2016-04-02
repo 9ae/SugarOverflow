@@ -22,7 +22,7 @@ public class QuestionTest {
 
     @Test
     public void constructorExplicit() {
-        Question question = new Question("1", "wonderland", "http://valour.me");
+        Question question = new Question("1", "wonderland", "http://valour.me", 123);
         assertEquals(question.id, "1");
         assertEquals(question.title, "wonderland");
         assertEquals(question.link, "http://valour.me");

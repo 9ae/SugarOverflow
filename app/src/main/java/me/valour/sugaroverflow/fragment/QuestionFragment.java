@@ -1,23 +1,35 @@
 package me.valour.sugaroverflow.fragment;
 
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.app.ListFragment;
+import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.widget.ListView;
 
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 import me.valour.sugaroverflow.adapter.QuestionsAdapter;
 import me.valour.sugaroverflow.model.Question;
+import me.valour.sugaroverflow.orm.AccessDB;
 
 
 public class QuestionFragment extends ListFragment {
 
 
     private QuestionsAdapter adapter;
+
+    private Handler dbCheckHandler;
+    private CheckDBForUpdates dbChecker;
+    protected int lastChecked = 0;
+
+    private Context appContext;
 
     /**
      * Instantiate Fragment
@@ -35,9 +47,12 @@ public class QuestionFragment extends ListFragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-            adapter = new QuestionsAdapter(getActivity());
-            setListAdapter(adapter);
+        adapter = new QuestionsAdapter(getActivity());
+        setListAdapter(adapter);
 
+        appContext = this.getActivity();
+        dbCheckHandler = new Handler();
+        dbChecker = new CheckDBForUpdates();
     }
 
     @Override
@@ -84,6 +99,24 @@ public class QuestionFragment extends ListFragment {
             questions.add(adapter.getItem(i));
         }
         return questions;
+    }
+
+    public void startCheckDB(){
+        dbChecker.run();
+    }
+
+
+    class CheckDBForUpdates implements Runnable {
+
+        @Override
+        public void run() {
+            ArrayList<Question> questions = AccessDB.getInstance(appContext).listQuestions(lastChecked);
+            updateList(questions);
+
+            lastChecked = (int)(System.currentTimeMillis()/1000);
+            Log.i("FLOW", "checking DB");
+            dbCheckHandler.postDelayed(this, 30000);
+        }
     }
 
 }

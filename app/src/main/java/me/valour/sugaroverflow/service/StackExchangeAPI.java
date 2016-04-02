@@ -28,6 +28,8 @@ public class StackExchangeAPI {
     private RequestQueue requestQueue;
     private static Context ctx;
 
+    private int requestsCount = 0; //TODO: remove this var
+
     private StackExchangeAPI(Context ctx) {
         this.ctx = ctx;
         requestQueue = getRequestQueue();
@@ -90,6 +92,9 @@ public class StackExchangeAPI {
             request.setTag(tag);
         }
 
+        requestsCount++;
+        Log.i("^@^", requestsCount+" requests made in "+tag);
+
         addToRequestQueue(request);
 
     }
@@ -125,6 +130,7 @@ public class StackExchangeAPI {
                         "from_date=" + after +
                         "&order=asc" +
                         "&sort=creation" +
+                        "&pagesize=1" + //TODO: remove this line
                         "&tagged=android" +
                         "&site=stackoverflow",
                 Request.Method.GET, null, responseListener, RECURRING);
